@@ -120,4 +120,4 @@ ollama pull llama2
 
 ---
 
-**🎉 Your Ticket System is now complete and ready to use!** 
+**🎉 Your Ticket System is now complete and ready to use!**

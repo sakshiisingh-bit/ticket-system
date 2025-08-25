@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+const API = process.env.REACT_APP_API_URL || 'https://ticket-system-14is.onrender.com'
 
 function App() {
   const [tickets, setTickets] = useState([])

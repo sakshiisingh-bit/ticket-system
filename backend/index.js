@@ -11,7 +11,23 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
 
 const app = express()
 app.use(express.json())
-app.use(cors())
+
+// CORS allowlist sourced from env FRONTEND_ORIGINS (comma-separated)
+const envOrigins = (process.env.FRONTEND_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+const allowedOrigins = [...new Set(['http://localhost:3000', ...envOrigins])]
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true) // allow Postman/curl
+    if (allowedOrigins.length === 0) return callback(null, true)
+    const isAllowed = allowedOrigins.includes(origin)
+    return callback(isAllowed ? null : new Error('Not allowed by CORS'), isAllowed)
+  },
+  credentials: true
+}))
 
 mongoose.connect(process.env.MONGODB_URI || '')
   .then(() => console.log('Connected to MongoDB'))
@@ -74,8 +90,8 @@ function adminAuth(req, res, next) {
 
 app.post('/signup', async (req, res) => {
   try {
-    const { username, password } = req.body
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' })
+  const { username, password } = req.body
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' })
     const hash = await bcrypt.hash(password, 10)
     const user = await User.create({ username, password: hash, is_admin: false })
     const token = jwt.sign({ id: user._id.toString(), username, is_admin: false }, SECRET)
@@ -90,7 +106,7 @@ app.post('/signup', async (req, res) => {
 
 app.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body
+  const { username, password } = req.body
     const user = await User.findOne({ username })
     if (!user) return res.status(401).json({ error: 'Invalid credentials' })
     const same = await bcrypt.compare(password, user.password)
@@ -122,10 +138,10 @@ app.get('/admin/tickets', auth, adminAuth, async (req, res) => {
 
 app.post('/tickets', auth, async (req, res) => {
   try {
-    const { title, description } = req.body
-    if (!title || !title.trim() || !description || !description.trim()) {
-      return res.status(400).json({ error: 'Title and description required' })
-    }
+  const { title, description } = req.body
+  if (!title || !title.trim() || !description || !description.trim()) {
+    return res.status(400).json({ error: 'Title and description required' })
+  }
     const ticket = await Ticket.create({ title, description, status: 'open', user: req.user.id })
     const populated = await Ticket.findById(ticket._id).populate('user', 'username').lean()
     res.json({ id: populated._id, title: populated.title, description: populated.description, status: populated.status, created_at: populated.created_at, username: populated.user?.username || '' })
@@ -136,7 +152,7 @@ app.post('/tickets', auth, async (req, res) => {
 
 app.get('/tickets', async (req, res) => {
   try {
-    const { search, status } = req.query
+  const { search, status } = req.query
     const filter = {}
     if (status) filter.status = status
     if (search) {
@@ -182,8 +198,8 @@ app.get('/tickets/:id/solution', auth, async (req, res) => {
 
 app.post('/tickets/:id/comments', auth, async (req, res) => {
   try {
-    const { content } = req.body
-    if (!content || !content.trim()) return res.status(400).json({ error: 'Comment required' })
+  const { content } = req.body
+  if (!content || !content.trim()) return res.status(400).json({ error: 'Comment required' })
     const created = await Comment.create({ ticket: req.params.id, user: req.user.id, content })
     const populated = await Comment.findById(created._id).populate('user', 'username').lean()
     res.json({ id: populated._id, ticket_id: req.params.id, user_id: req.user.id, content: populated.content, created_at: populated.created_at, username: populated.user?.username || '' })
@@ -203,10 +219,10 @@ app.get('/tickets/:id/comments', async (req, res) => {
 
 app.put('/tickets/:id', auth, async (req, res) => {
   try {
-    const { title, description, status } = req.body
-    if (!title || !title.trim() || !description || !description.trim()) {
-      return res.status(400).json({ error: 'Title and description required' })
-    }
+  const { title, description, status } = req.body
+  if (!title || !title.trim() || !description || !description.trim()) {
+    return res.status(400).json({ error: 'Title and description required' })
+  }
     const updated = await Ticket.findByIdAndUpdate(req.params.id, { title, description, status: status || 'open' }, { new: true })
     if (!updated) return res.status(404).json({ error: 'Not found' })
     const t = await Ticket.findById(updated._id).lean()
@@ -227,4 +243,5 @@ app.delete('/tickets/:id', auth, async (req, res) => {
   }
 })
 
-app.listen(3001) 
+const PORT = process.env.PORT || 3001
+app.listen(PORT)
